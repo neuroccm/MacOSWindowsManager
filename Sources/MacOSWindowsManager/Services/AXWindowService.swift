@@ -109,32 +109,26 @@ public enum AXWindowService {
     }
 
     /// True while Mission Control / Exposé / Launchpad owns the screen.
-    /// Detector: the Dock (which hosts those UIs) shows an on-screen,
-    /// Dock-level window covering (nearly) a whole display. The normal
-    /// Dock bar is a thin edge strip and never matches. While this is
-    /// true, tiling and drag-docking suspend — real window frames are
-    /// meaningless on the Mission Control canvas.
+    /// Signal: the Dock (which hosts those UIs) is the frontmost app.
+    /// In normal work the Dock is never frontmost, so this cannot wedge
+    /// tiling off. The previous signal — a full-display Dock-level CG
+    /// window — matched a permanent Dock canvas window on current macOS
+    /// and disabled tiling entirely (build-4 regression, live-probed).
     public static func isSystemOverviewActive() -> Bool {
-        guard let dockPID = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == "com.apple.dock" })?.processIdentifier,
-              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return false }
-        let screens = NSScreen.screens.map(\.frame)
-        return list.contains { info in
-            guard (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == dockPID,
-                  let layer = (info[kCGWindowLayer as String] as? NSNumber)?.intValue, layer >= 20,
-                  let boundsDict = info[kCGWindowBounds as String] as? NSDictionary,
-                  let bounds = CGRect(dictionaryRepresentation: boundsDict) else { return false }
-            return isFullScreen(bounds: bounds, screens: screens)
-        }
+        isOverviewFrontmostApp(NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
     }
 
-    /// Pure size test behind the overview detector (unit-tested).
-    static func isFullScreen(bounds: CGRect, screens: [CGRect]) -> Bool {
-        screens.contains { bounds.width >= $0.width * 0.9 && bounds.height >= $0.height * 0.9 }
+    /// Pure frontmost-app test behind the overview detector (unit-tested).
+    static func isOverviewFrontmostApp(_ bundleID: String?) -> Bool {
+        bundleID == "com.apple.dock"
     }
 
     public static func allWindows(excludedBundleIDs: Set<String>, onScreenOnly: Bool = true) -> [ManagedWindow] {
         guard isAccessibilityTrusted(prompt: false) else { return [] }
-        let onScreen: Set<CGWindowID>? = onScreenOnly ? Set(onScreenWindowIDsInZOrder()) : nil
+        // Fail OPEN: an empty on-screen list means the CG query failed or
+        // is restricted — never let it veto every real window.
+        let onScreenIDs = onScreenWindowIDsInZOrder()
+        let onScreen: Set<CGWindowID>? = (onScreenOnly && !onScreenIDs.isEmpty) ? Set(onScreenIDs) : nil
         var out: [ManagedWindow] = []
         let ownPID = ProcessInfo.processInfo.processIdentifier
         let attrs = windowAttributes as CFArray

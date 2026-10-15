@@ -104,6 +104,13 @@ final class DragDockMonitor {
             if ignoringGesture || AXWindowService.isSystemOverviewActive() { return }
             if seamKey != nil { return } // live resize already applied
             guard let dragged = dragWindowID, hypot(p.x - dragStart.x, p.y - dragStart.y) > 10 else { return }
+            // Detector-independent proof of a real window drag: the actual
+            // window must have moved in the real Space. In Mission Control
+            // you drag a thumbnail — the real frame stays put — so this
+            // bails out even if every other MC signal missed.
+            guard let startFrame = cachedFrames.first(where: { $0.id == dragged })?.rect,
+                  let nowFrame = tiling.currentCocoaFrame(of: dragged),
+                  AnimationTiming.framesDiffer(startFrame, nowFrame) else { return }
             // A window the user just dragged by hand must not be re-docked onto itself.
             // Drop targets didn't move during the drag, so the cached frames are still right.
             let target = cachedFrames.first(where: { $0.id != dragged && $0.rect.contains(p) })

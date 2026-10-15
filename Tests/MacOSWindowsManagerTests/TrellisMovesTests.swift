@@ -93,14 +93,20 @@ final class TrellisMovesTests: XCTestCase {
         XCTAssertFalse(DockGeometry.isTitleBarDrag(point: CGPoint(x: 1300, y: 790), in: rect)) // outside
     }
 
-    func testMissionControlDetectorNeedsFullScreenDockWindow() {
-        let screens = [CGRect(x: 0, y: 0, width: 1920, height: 1080)]
-        // Mission Control canvas covers the display.
-        XCTAssertTrue(AXWindowService.isFullScreen(bounds: CGRect(x: 0, y: 0, width: 1920, height: 1080), screens: screens))
-        // The ordinary Dock bar is a thin strip — must never suspend tiling.
-        XCTAssertFalse(AXWindowService.isFullScreen(bounds: CGRect(x: 600, y: 1010, width: 720, height: 70), screens: screens))
-        XCTAssertFalse(AXWindowService.isFullScreen(bounds: CGRect(x: 0, y: 0, width: 1920, height: 90), screens: screens)) // desktops strip alone
-        XCTAssertFalse(AXWindowService.isFullScreen(bounds: CGRect(x: 0, y: 0, width: 800, height: 600), screens: screens))
+    func testMissionControlDetectorOnlyTripsWhenDockIsFrontmost() {
+        // Regression (build 4 -> 5): a CG-window heuristic matched a
+        // permanent full-screen Dock canvas window on current macOS and
+        // disabled tiling 100% of the time (verified by live probe:
+        // Dock owns a layer-20 window with full-display bounds even
+        // outside Mission Control). The detector must therefore depend
+        // ONLY on the Dock being frontmost, which never happens during
+        // normal work — a detector error must not be able to wedge
+        // tiling off.
+        XCTAssertTrue(AXWindowService.isOverviewFrontmostApp("com.apple.dock"))
+        XCTAssertFalse(AXWindowService.isOverviewFrontmostApp("com.google.Chrome"))
+        XCTAssertFalse(AXWindowService.isOverviewFrontmostApp("com.apple.finder"))
+        XCTAssertFalse(AXWindowService.isOverviewFrontmostApp(nil))
+        XCTAssertFalse(AXWindowService.isOverviewFrontmostApp(""))
     }
 
     func testSavedViewsArePerDisplay() {

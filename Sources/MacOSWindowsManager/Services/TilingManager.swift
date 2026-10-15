@@ -375,6 +375,13 @@ public final class TilingManager: ObservableObject {
         }
         return out
     }
+    /// Fresh frame for one window (used to confirm a drag really moved
+    /// a window in the real Space before docking it).
+    public func currentCocoaFrame(of id: CGWindowID) -> CGRect? {
+        windows().first { $0.snapshot.windowID == id }
+            .map { CoordinateConverter.cocoaFrame(fromAX: $0.snapshot.axFrame, primaryHeight: primaryHeight) }
+    }
+
     /// Window frames in true front-to-back z-order (AX enumeration order
     /// is arbitrary, so hit-testing must not rely on it).
     public func windowCocoaFrames() -> [(id: CGWindowID, rect: CGRect)] {

@@ -1,6 +1,6 @@
 # MacOSWindowsManager
 
-**Version 1.1 (build 4)** · macOS 14+ · Native Swift · No account, no pay tier, no network
+**Version 1.1 (build 5)** · macOS 14+ · Native Swift · No account, no pay tier, no network
 
 > **Archived / read-only.** This is a personal project published for
 > reference. It is not accepting issues or pull requests, and no support
