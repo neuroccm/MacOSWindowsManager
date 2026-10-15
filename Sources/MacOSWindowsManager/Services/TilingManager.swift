@@ -51,15 +51,25 @@ public final class TilingManager: ObservableObject {
         if let num = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
             return "display-\(num.uint32Value)"
         }
-        return "display-\(screen.localizedName)-\(Int(screen.frame.width))x\(Int(screen.frame.height))"
+        // Fallback must stay unique across identical monitor models:
+        // include the frame origin, not just name + size.
+        return "display-\(screen.localizedName)-\(Int(screen.frame.minX)),\(Int(screen.frame.minY))-\(Int(screen.frame.width))x\(Int(screen.frame.height))"
     }
 
+    /// Owning display for a window: largest overlap, else nearest.
+    /// (Was: first screen containing the center, else the FOCUSED
+    /// display — with 3+ mixed-orientation monitors that both missed
+    /// dead zones and let keyboard focus steal window assignment.)
     private func screen(forAXFrame f: CGRect) -> NSScreen? {
-        let c = CoordinateConverter.cocoaPoint(fromAX: CGPoint(x: f.midX, y: f.midY), primaryHeight: primaryHeight)
-        return NSScreen.screens.first { $0.frame.contains(c) } ?? NSScreen.main ?? NSScreen.screens.first
+        let cocoa = CoordinateConverter.cocoaFrame(fromAX: f, primaryHeight: primaryHeight)
+        let screens = NSScreen.screens
+        guard let i = DisplayGeometry.screenIndex(forCocoaRect: cocoa, screens: screens.map(\.frame)) else { return screens.first }
+        return screens[i]
     }
     private func screen(forCocoaPoint p: CGPoint) -> NSScreen? {
-        NSScreen.screens.first { $0.frame.contains(p) } ?? NSScreen.main ?? NSScreen.screens.first
+        let screens = NSScreen.screens
+        guard let i = DisplayGeometry.screenIndex(forCocoaPoint: p, screens: screens.map(\.frame)) else { return screens.first }
+        return screens[i]
     }
     public func windows() -> [ManagedWindow] { AXWindowService.allWindows(excludedBundleIDs: settings.excludedBundleIDs) }
 
@@ -71,8 +81,8 @@ public final class TilingManager: ObservableObject {
 
     // MARK: - Tree sync & tiling
 
-    private func syncTree(ids: [UInt32], key: String) -> LayoutNode {
-        var tree = trees[key] ?? LayoutNode.balanced(ids: ids) ?? .leaf(id: ids.first ?? 0)
+    private func syncTree(ids: [UInt32], key: String, portrait: Bool = false) -> LayoutNode {
+        var tree = trees[key] ?? LayoutNode.balanced(ids: ids, portrait: portrait) ?? .leaf(id: ids.first ?? 0)
         for dead in tree.leafIDs where !ids.contains(dead) { tree = tree.removing(dead) ?? tree }
         // If tree collapsed to nil-equivalent (empty), rebuild.
         if tree.leafIDs.isEmpty, let f = ids.first { tree = .leaf(id: f) }
@@ -142,7 +152,12 @@ public final class TilingManager: ObservableObject {
         }
         var targets: [CGWindowID: (ManagedWindow, CGRect)] = [:]
         for (key, (scr, group)) in byScreen {
-            let cam = camera(for: key, screen: scr)
+            var cam = camera(for: key, screen: scr)
+            // Display rotated / resized since this camera was created:
+            // follow the new visible frame while in overview.
+            if cam.isOverview, cam.viewport != scr.visibleFrame {
+                cam.viewport = scr.visibleFrame; cameras[key] = cam
+            }
             if let zid = cam.zoomedWindowID, group.contains(where: { $0.snapshot.windowID == zid }) {
                 // Zoomed: focused window fills the display, others keep last frames.
                 for w in group where w.snapshot.windowID == zid {
@@ -187,7 +202,7 @@ public final class TilingManager: ObservableObject {
             return plan.frames
         }
         if settings.layoutMode == .bsp {
-            let tree = syncTree(ids: ids, key: key)
+            let tree = syncTree(ids: ids, key: key, portrait: DisplayGeometry.isPortrait(scr.visibleFrame))
             return tree.frames(in: scr.visibleFrame, gap: CGFloat(settings.gap))
         }
         return LayoutEngine.frames(ids: ids, in: scr.visibleFrame, gap: CGFloat(settings.gap), mode: settings.layoutMode, masterRatio: settings.masterRatio)
@@ -281,13 +296,19 @@ public final class TilingManager: ObservableObject {
         AXWindowService.focus(n); lastStatus = "Focused \(n.snapshot.appName)"
     }
 
-    public func moveFocusedToNextDisplay() {
+    public func moveFocusedToNextDisplay() { moveFocusedBy(delta: 1) }
+    public func moveFocusedToPreviousDisplay() { moveFocusedBy(delta: -1) }
+
+    /// Cycles through ALL connected displays (2, 3, or more). With three
+    /// monitors, previous-display (⌃⌥⇧D) avoids two hops the long way.
+    private func moveFocusedBy(delta: Int) {
         guard NSScreen.screens.count > 1, let f = AXWindowService.focusedWindow(excludedBundleIDs: settings.excludedBundleIDs),
               let cur = screen(forAXFrame: f.snapshot.axFrame), let i = NSScreen.screens.firstIndex(of: cur) else {
             lastStatus = NSScreen.screens.count > 1 ? "No focused window" : "Only one display connected"
             return
         }
-        let next = NSScreen.screens[(i + 1) % NSScreen.screens.count]
+        let count = NSScreen.screens.count
+        let next = NSScreen.screens[(i + delta + count) % count]
         if originalFrames[f.snapshot.windowID] == nil { originalFrames[f.snapshot.windowID] = f.snapshot.axFrame }
         // Re-parent: remove from old tree/order; on the target display the
         // window is a newcomer and takes that display's next stable slot.
@@ -309,7 +330,7 @@ public final class TilingManager: ObservableObject {
         let key = Self.displayKey(for: scr)
         let all = windows(); lastManaged = all
         let ids = all.filter { screen(forAXFrame: $0.snapshot.axFrame) == scr }.map { $0.snapshot.windowID }
-        var tree = syncTree(ids: ids.filter { $0 != draggedID } + (ids.contains(draggedID) ? [] : []), key: key)
+        var tree = syncTree(ids: ids.filter { $0 != draggedID } + (ids.contains(draggedID) ? [] : []), key: key, portrait: DisplayGeometry.isPortrait(scr.visibleFrame))
         // Remove dragged from wherever it was, then dock it.
         tree = tree.removing(draggedID) ?? tree
         if tree.leafIDs.isEmpty, let other = ids.first(where: { $0 != draggedID }) { tree = .leaf(id: other) }

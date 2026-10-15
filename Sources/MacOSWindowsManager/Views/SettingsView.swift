@@ -5,6 +5,7 @@ struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var tiling: TilingManager
     @State private var newExclusion: String = ""
+    private var portraitDisplayCount: Int { NSScreen.screens.filter { $0.frame.height > $0.frame.width }.count }
 
     var body: some View {
         Form {
@@ -26,7 +27,7 @@ struct SettingsView: View {
                         .onChange(of: settings.masterRatio) { _, _ in if settings.isTilingEnabled { tiling.tileAll() } }
                 }
                 Text(tiling.lastStatus).font(.caption).foregroundStyle(.secondary)
-                Text("\(tiling.lastWindowCount) managed window(s) · \(NSScreen.screens.count) display(s)")
+                Text("\(tiling.lastWindowCount) managed window(s) · \(NSScreen.screens.count) display(s)\(portraitDisplayCount > 0 ? " (\(portraitDisplayCount) portrait)" : "")")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Zoom, tabs & seams") {
@@ -49,7 +50,7 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Hotkeys (⌃⌥ = Control + Option)") {
-                Text("⌃⌥Space Overview · ⌃⌥F Float all · ⌃⌥↩ Maximize · ⌃⌥↓/↑ Zoom in/out\n⌃⌥[ / ] Back/Forward · ⌃⌥Y Next tab · ⌃⌥T Tear off · ⌃⌥-/= Seam\n⌃⌥Tab Next window · ⌃⌥D Next display · ⌃⌥S/B/M/C/G Layouts\n⌃⌥⇧1 Save view 1 · ⌃⌥1/2/3 Restore view")
+                Text("⌃⌥Space Overview · ⌃⌥F Float all · ⌃⌥↩ Maximize · ⌃⌥↓/↑ Zoom in/out\n⌃⌥[ / ] Back/Forward · ⌃⌥Y Next tab · ⌃⌥T Tear off · ⌃⌥-/= Seam\n⌃⌥Tab Next window · ⌃⌥D / ⌃⌥⇧D Next/previous display · ⌃⌥S/B/M/C/G Layouts\n⌃⌥⇧1 Save view 1 · ⌃⌥1/2/3 Restore view")
                     .font(.caption)
             }
             Section("Excluded apps (never arranged)") {

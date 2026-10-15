@@ -54,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Float all — restore originals  (⌃⌥F)", action: #selector(floatAll), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Maximize focused  (⌃⌥↩)", action: #selector(maximize), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Move focused to next display  (⌃⌥D)", action: #selector(nextDisplay), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Move focused to previous display  (⌃⌥⇧D)", action: #selector(prevDisplay), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Overview — see everything  (⌃⌥Space)", action: #selector(overview), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Zoom into focused  (⌃⌥↓)", action: #selector(zoomIn), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Step out / zoom out  (⌃⌥↑)", action: #selector(zoomOut), keyEquivalent: ""))
@@ -86,7 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         viewsItem.submenu = viewsMenu
         menu.addItem(viewsItem)
 
-        menu.addItem(NSMenuItem(title: "Displays: \(NSScreen.screens.count) — each keeps its own layout", action: nil, keyEquivalent: ""))
+        let portraitCount = NSScreen.screens.filter { $0.frame.height > $0.frame.width }.count
+        menu.addItem(NSMenuItem(title: "Displays: \(NSScreen.screens.count)\(portraitCount > 0 ? " (\(portraitCount) portrait)" : "") — each keeps its own layout", action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit & restore windows", action: #selector(quitApp), keyEquivalent: "q"))
@@ -104,6 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .focusNext: self.tiling.cycleFocus(forward: true)
             case .focusPrev: self.tiling.cycleFocus(forward: false)
             case .nextDisplay: self.tiling.moveFocusedToNextDisplay()
+            case .prevDisplay: self.tiling.moveFocusedToPreviousDisplay()
             case .layoutStable: self.settings.layoutMode = .stable; self.tiling.tileAll()
             case .layoutBSP: self.settings.layoutMode = .bsp; self.tiling.tileAll()
             case .layoutMaster: self.settings.layoutMode = .masterStack; self.tiling.tileAll()
@@ -193,6 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func floatAll() { tiling.floatAll(); rebuildMenu() }
     @objc private func maximize() { tiling.maximizeFocused() }
     @objc private func nextDisplay() { tiling.moveFocusedToNextDisplay() }
+    @objc private func prevDisplay() { tiling.moveFocusedToPreviousDisplay() }
     @objc private func selectLayout(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String, let mode = LayoutMode(rawValue: raw) { settings.layoutMode = mode; tiling.tileAll(); rebuildMenu() }
     }

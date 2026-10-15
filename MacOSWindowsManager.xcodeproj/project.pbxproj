@@ -21,6 +21,7 @@
 		BF97B0859BDACACBF4015CEE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 09AA93AA85FCBE869AB414CF /* Assets.xcassets */; };
 		C07AD35A2460743FF73F876D /* WindowSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935BB2CAFDC5495D3D935D20 /* WindowSnapshot.swift */; };
 		CF84A8A01FB409CED9FBEDAD /* Camera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B4CC6F14000730EF3050E26 /* Camera.swift */; };
+		D49F51E536E63C9CD2E71287 /* MultiDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F78DB9AE135409362A4A9D /* MultiDisplayTests.swift */; };
 		F871393A9FFBB4044C4DDD11 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFF6A932B3B6B7C5845DFFD /* AppDelegate.swift */; };
 		F88511A00173A48BBE886B2E /* TilingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62CCE93B76B711DF82F4C19B /* TilingManager.swift */; };
 		F8A5B0D12C970A0E8F43B0CA /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2653F3DE640A1A7467B9BCA /* SettingsStore.swift */; };
@@ -41,6 +42,7 @@
 		09AA93AA85FCBE869AB414CF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0B4CC6F14000730EF3050E26 /* Camera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Camera.swift; sourceTree = "<group>"; };
 		32DC0CF2B2C17CCA5456CA93 /* DragDockMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDockMonitor.swift; sourceTree = "<group>"; };
+		34F78DB9AE135409362A4A9D /* MultiDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiDisplayTests.swift; sourceTree = "<group>"; };
 		3896EE3FE23C068742EE70CC /* MacOSWindowsManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacOSWindowsManagerApp.swift; sourceTree = "<group>"; };
 		3A3A5F1E6DDA9CBB170E61D9 /* TrellisMovesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisMovesTests.swift; sourceTree = "<group>"; };
 		62CCE93B76B711DF82F4C19B /* TilingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TilingManager.swift; sourceTree = "<group>"; };
@@ -101,6 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				AD3E7CB696AC5A35E5E42467 /* LayoutEngineTests.swift */,
+				34F78DB9AE135409362A4A9D /* MultiDisplayTests.swift */,
 				9A2A536E38D7EFFF8ADC4D0B /* StableLayoutTests.swift */,
 				3A3A5F1E6DDA9CBB170E61D9 /* TrellisMovesTests.swift */,
 			);
@@ -251,6 +254,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				923ECC49C173F0CF7E5C29BD /* LayoutEngineTests.swift in Sources */,
+				D49F51E536E63C9CD2E71287 /* MultiDisplayTests.swift in Sources */,
 				0317B2B77F8B5F404035C431 /* StableLayoutTests.swift in Sources */,
 				8DAD3FBC38C718473BF76DCD /* TrellisMovesTests.swift in Sources */,
 			);
@@ -393,7 +397,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MacOSWindowsManager;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -402,7 +406,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.houman.MacOSWindowsManager;
 				PRODUCT_NAME = MacOSWindowsManager;
 				SDKROOT = macosx;
@@ -474,7 +478,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MacOSWindowsManager;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -483,7 +487,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.houman.MacOSWindowsManager;
 				PRODUCT_NAME = MacOSWindowsManager;
 				SDKROOT = macosx;

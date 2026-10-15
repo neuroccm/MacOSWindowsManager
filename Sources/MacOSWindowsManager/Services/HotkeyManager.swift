@@ -5,7 +5,7 @@ import Foundation
 @MainActor
 public final class HotkeyManager {
     public enum Action: String, CaseIterable {
-        case tileAll, floatAll, maximize, focusNext, focusPrev, nextDisplay
+        case tileAll, floatAll, maximize, focusNext, focusPrev, nextDisplay, prevDisplay
         case layoutStable, layoutBSP, layoutMaster, layoutColumns, layoutGrid
         case saveView1, restoreView1
         case zoomIn, zoomOut, back, forward, tabNext, tearOff, seamGrow, seamShrink
@@ -23,6 +23,7 @@ public final class HotkeyManager {
         (.maximize, UInt32(kVK_Return), UInt32(controlKey | optionKey)),
         (.focusNext, UInt32(kVK_Tab), UInt32(controlKey | optionKey)),
         (.nextDisplay, UInt32(kVK_ANSI_D), UInt32(controlKey | optionKey)),
+        (.prevDisplay, UInt32(kVK_ANSI_D), UInt32(controlKey | optionKey | shiftKey)),
         (.layoutStable, UInt32(kVK_ANSI_S), UInt32(controlKey | optionKey)),
         (.layoutBSP, UInt32(kVK_ANSI_B), UInt32(controlKey | optionKey)),
         (.layoutMaster, UInt32(kVK_ANSI_M), UInt32(controlKey | optionKey)),

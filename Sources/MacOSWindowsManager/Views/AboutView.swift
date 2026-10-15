@@ -25,7 +25,7 @@ struct AboutView: View {
 
                 Text("What it does")
                     .font(.headline)
-                Text("MacOSWindowsManager arranges your real windows into calm, readable layouts — one independent layout per display. The default Stable layout only ever uses halves and quarters (never slivers), pairs similar apps side by side (two browsers together, a new chat window in a quarter), tabs extra windows behind tiles instead of subdividing further, and leaves everything exactly where it is when you merely click between windows. Manual BSP docking, tabs, seams, and zoom are still there when you want them. It lives quietly in your menu bar, works on one monitor or two, and runs entirely on this Mac: no account, no pay tier, no network.")
+                Text("MacOSWindowsManager arranges your real windows into calm, readable layouts — one independent layout per display. The default Stable layout only ever uses halves and quarters (never slivers), pairs similar apps side by side (two browsers together, a new chat window in a quarter), tabs extra windows behind tiles instead of subdividing further, and leaves everything exactly where it is when you merely click between windows. Manual BSP docking, tabs, seams, and zoom are still there when you want them. It lives quietly in your menu bar, works across one, two, three or more monitors (portrait ones included), and runs entirely on this Mac: no account, no pay tier, no network.")
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text("The five moves")

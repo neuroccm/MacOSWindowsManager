@@ -1,6 +1,6 @@
 # MacOSWindowsManager
 
-**Version 1.1 (build 5)** · macOS 14+ · Native Swift · No account, no pay tier, no network
+**Version 1.2 (build 6)** · macOS 14+ · Native Swift · No account, no pay tier, no network
 
 > **Archived / read-only.** This is a personal project published for
 > reference. It is not accepting issues or pull requests, and no support
@@ -13,7 +13,8 @@ Your own native Swift window manager for macOS — inspired by TrellisWM's
 It lives in the menu bar; choose **About MacOSWindowsManager** there for
 the built-in explainer.
 
-One display works; two displays each keep their own independent layout.
+One, two, three or more displays each keep their own independent
+layout — portrait (vertical) monitors included.
 
 ## Build & run
 
@@ -55,8 +56,15 @@ optional and not used in v1.
 - **Float All** restores every window to its pre-tiling position;
   quitting does the same. Nothing gets lost off-screen.
 - **Saved views** 1–3 from the menu; **excluded apps** are never arranged.
-- **Multi-monitor:** each `NSScreen` gets its own layout; move the
-  focused window across displays with ⌃⌥D.
+- **Multi-monitor (2, 3, or more):** each `NSScreen` gets its own
+  independent layout, stable order, zoom state, and saved views.
+  Windows are assigned to a display by largest overlap (nearest if
+  they sit in a dead zone between mixed-size monitors), never by
+  which display has focus. Move the focused window across displays
+  with ⌃⌥D (next) and ⌃⌥⇧D (previous). Portrait monitors get
+  stacked halves, a full-width top slot for three windows, and
+  orientation-aware BSP/Master/Columns/Grid layouts; rotating or
+  hot-plugging a display re-tiles automatically.
 
 ## Hotkeys (⌃ = Control, ⌥ = Option)
 
@@ -70,7 +78,7 @@ optional and not used in v1.
 | ⌃⌥Y / ⌃⌥T | Next tab / tear tab off |
 | ⌃⌥- / ⌃⌥= | Shrink / grow seam |
 | ⌃⌥Tab | Focus next window |
-| ⌃⌥D | Move focused window to next display |
+| ⌃⌥D / ⌃⌥⇧D | Move focused window to next / previous display |
 | ⌃⌥S / B / M / C / G | Stable / BSP / Master / Columns / Grid |
 | ⌃⌥⇧1, ⌃⌥1–3 | Save view 1 / restore view 1–3 (per display) |
 

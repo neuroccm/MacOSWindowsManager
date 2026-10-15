@@ -238,18 +238,21 @@ public indirect enum LayoutNode: Equatable {
     /// Genuinely balanced tree: recursively halves the ID list, alternating
     /// split orientation by depth. Every leaf ends up within ~2x the area
     /// of every other leaf — the old linear chain halved widths per window
-    /// (6 windows -> some tiles were 1/32 of the display).
-    public static func balanced(ids: [UInt32]) -> LayoutNode? {
-        buildBalanced(ids[...], depth: 0)
+    /// (6 windows -> some tiles were 1/32 of the display). On a portrait
+    /// display the first split stacks vertically instead of carving the
+    /// narrow display into side-by-side columns.
+    public static func balanced(ids: [UInt32], portrait: Bool = false) -> LayoutNode? {
+        buildBalanced(ids[...], depth: 0, portrait: portrait)
     }
 
-    private static func buildBalanced(_ ids: ArraySlice<UInt32>, depth: Int) -> LayoutNode? {
+    private static func buildBalanced(_ ids: ArraySlice<UInt32>, depth: Int, portrait: Bool) -> LayoutNode? {
         guard let first = ids.first else { return nil }
         if ids.count == 1 { return .leaf(id: first) }
         let mid = ids.startIndex + ids.count / 2
-        guard let a = buildBalanced(ids[..<mid], depth: depth + 1),
-              let b = buildBalanced(ids[mid...], depth: depth + 1) else { return .leaf(id: first) }
-        return .split(orientation: depth.isMultiple(of: 2) ? .horizontal : .vertical,
+        guard let a = buildBalanced(ids[..<mid], depth: depth + 1, portrait: portrait),
+              let b = buildBalanced(ids[mid...], depth: depth + 1, portrait: portrait) else { return .leaf(id: first) }
+        let sideBySide = depth.isMultiple(of: 2) != portrait
+        return .split(orientation: sideBySide ? .horizontal : .vertical,
                       ratio: 0.5, first: a, second: b)
     }
 }
@@ -274,17 +277,34 @@ public enum LayoutEngine {
         case .bsp:
             let capacity = max(1, Int(rect.width / minTileWidth) * Int(rect.height / minTileHeight))
             let visible = Array(ids.prefix(capacity))
-            guard let tree = LayoutNode.balanced(ids: visible) else { return [:] }
+            guard let tree = LayoutNode.balanced(ids: visible, portrait: DisplayGeometry.isPortrait(rect)) else { return [:] }
             var out = tree.frames(in: rect, gap: gap)
             if let last = visible.last, let hostFrame = out[last] {
                 for id in ids.dropFirst(capacity) { out[id] = hostFrame }
             }
             return out
         case .masterStack:
-            let masterW = rect.width * CGFloat(min(max(masterRatio, 0.2), 0.8))
-            let master = CGRect(x: rect.minX, y: rect.minY, width: masterW, height: rect.height)
-            var out: [UInt32: CGRect] = [ids[0]: master.insetBy(dx: gap / 2, dy: gap / 2)]
+            let ratio = CGFloat(min(max(masterRatio, 0.2), 0.8))
+            var out: [UInt32: CGRect] = [:]
             let rest = Array(ids.dropFirst())
+            if DisplayGeometry.isPortrait(rect) {
+                // Master on top (full width), stack side by side below it.
+                let masterH = rect.height * ratio
+                let master = CGRect(x: rect.minX, y: rect.maxY - masterH, width: rect.width, height: masterH)
+                out[ids[0]] = master.insetBy(dx: gap / 2, dy: gap / 2)
+                let stack = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height - masterH)
+                let cols = max(1, min(rest.count, Int(stack.width / minTileWidth)))
+                let eachW = stack.width / CGFloat(cols)
+                for (i, id) in rest.enumerated() {
+                    let col = min(i, cols - 1) // overflow shares the last column
+                    let r = CGRect(x: stack.minX + eachW * CGFloat(col), y: stack.minY, width: eachW, height: stack.height)
+                    out[id] = r.insetBy(dx: gap / 2, dy: gap / 2)
+                }
+                return out
+            }
+            let masterW = rect.width * ratio
+            let master = CGRect(x: rect.minX, y: rect.minY, width: masterW, height: rect.height)
+            out[ids[0]] = master.insetBy(dx: gap / 2, dy: gap / 2)
             let stack = CGRect(x: rect.minX + masterW, y: rect.minY, width: rect.width - masterW, height: rect.height)
             let rows = max(1, min(rest.count, Int(stack.height / minTileHeight)))
             let eachH = stack.height / CGFloat(rows)
@@ -295,16 +315,32 @@ public enum LayoutEngine {
             }
             return out
         case .columns:
+            var out: [UInt32: CGRect] = [:]
+            if DisplayGeometry.isPortrait(rect) {
+                // "Columns" on a portrait display are full-width rows.
+                let rows = max(1, min(ids.count, Int(rect.height / minTileHeight)))
+                let h = rect.height / CGFloat(rows)
+                for (i, id) in ids.enumerated() {
+                    let row = min(i, rows - 1) // overflow shares the last row
+                    out[id] = CGRect(x: rect.minX, y: rect.minY + h * CGFloat(row), width: rect.width, height: h).insetBy(dx: gap / 2, dy: gap / 2)
+                }
+                return out
+            }
             let cols = max(1, min(ids.count, Int(rect.width / minTileWidth)))
             let w = rect.width / CGFloat(cols)
-            var out: [UInt32: CGRect] = [:]
             for (i, id) in ids.enumerated() {
                 let col = min(i, cols - 1) // overflow shares the last column
                 out[id] = CGRect(x: rect.minX + w * CGFloat(col), y: rect.minY, width: w, height: rect.height).insetBy(dx: gap / 2, dy: gap / 2)
             }
             return out
         case .grid:
-            var cols = Int(ceil(sqrt(Double(ids.count))))
+            // Choose columns so cell aspect stays readable on any display
+            // shape (target = display aspect, clamped so portrait screens
+            // stack full-width cells instead of skinny columns).
+            let screenAspect = Double(rect.width / rect.height)
+            let target = min(max(screenAspect, 0.75), 2.2)
+            let ideal = sqrt(Double(ids.count) * screenAspect / target)
+            var cols = gridColumnCount(ideal: ideal, count: ids.count, screenAspect: screenAspect, target: target)
             var rows = Int(ceil(Double(ids.count) / Double(cols)))
             cols = max(1, min(cols, Int(rect.width / minTileWidth)))
             rows = max(1, min(rows, Int(rect.height / minTileHeight)))
@@ -321,7 +357,51 @@ public enum LayoutEngine {
     }
 }
 
+private func gridColumnCount(ideal: Double, count: Int, screenAspect: Double, target: Double) -> Int {
+    let lo = max(1, Int(ideal.rounded(.down)))
+    let hi = max(lo, min(count, Int(ideal.rounded(.up))))
+    guard hi != lo else { return lo }
+    func score(_ cols: Int) -> Double {
+        let cellAspect = screenAspect * Double(count) / Double(cols * cols)
+        return abs(log(cellAspect / target))
+    }
+    if abs(score(lo) - score(hi)) < 0.001 { return screenAspect >= 1 ? hi : lo }
+    return score(lo) < score(hi) ? lo : hi
+}
+
 public enum DockZone: String, Equatable { case left, right, top, bottom, center }
+
+/// Which physical display owns a window/point, for any number of
+/// displays in any arrangement. Largest overlap wins; a frame in a
+/// dead zone (mixed-height neighbours) goes to the nearest display —
+/// never to whichever display holds keyboard focus.
+public enum DisplayGeometry {
+    public static func isPortrait(_ rect: CGRect) -> Bool { rect.height > rect.width }
+
+    public static func screenIndex(forCocoaRect rect: CGRect, screens: [CGRect]) -> Int? {
+        guard !screens.isEmpty else { return nil }
+        var bestIndex = 0, bestArea: CGFloat = -1
+        for (i, s) in screens.enumerated() {
+            let inter = rect.intersection(s)
+            let area = inter.isNull ? 0 : inter.width * inter.height
+            if area > bestArea { bestArea = area; bestIndex = i }
+        }
+        if bestArea > 0 { return bestIndex }
+        return screenIndex(forCocoaPoint: CGPoint(x: rect.midX, y: rect.midY), screens: screens)
+    }
+
+    public static func screenIndex(forCocoaPoint p: CGPoint, screens: [CGRect]) -> Int? {
+        guard !screens.isEmpty else { return nil }
+        if let i = screens.firstIndex(where: { $0.contains(p) }) { return i }
+        return screens.enumerated().min { distance(p, to: $0.element) < distance(p, to: $1.element) }?.offset
+    }
+
+    static func distance(_ p: CGPoint, to rect: CGRect) -> CGFloat {
+        let dx = max(rect.minX - p.x, 0, p.x - rect.maxX)
+        let dy = max(rect.minY - p.y, 0, p.y - rect.maxY)
+        return hypot(dx, dy)
+    }
+}
 
 /// Pure dock hit-testing shared by drag-to-dock and tests.
 public enum DockGeometry {
