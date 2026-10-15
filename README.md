@@ -1,6 +1,6 @@
 # MacOSWindowsManager
 
-**Version 1.1 (build 3)** · macOS 14+ · Native Swift · No account, no pay tier, no network
+**Version 1.1 (build 4)** · macOS 14+ · Native Swift · No account, no pay tier, no network
 
 ![MacOSWindowsManager app icon](icon-1024.png)
 
@@ -41,6 +41,10 @@ optional and not used in v1.
   keeps its tile and at most one pairing swap happens. Small displays
   cap at halves (a quarter smaller than ~440×300 pt is never produced);
   portrait displays stack halves vertically.
+- **Mission Control & Spaces are left alone:** tiling and drag-to-dock
+  suspend while Mission Control/Exposé is on screen, only windows on
+  the current Space are arranged, and arriving on a desktop adopts
+  its windows as-is. Looking around never rearranges anything.
 - **Layouts:** Stable, BSP (manual nesting), Master+Stack, Columns,
   Grid (menu or hotkeys). Every layout now respects a minimum readable
   tile size instead of dividing into slivers.

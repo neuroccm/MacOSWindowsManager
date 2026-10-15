@@ -139,6 +139,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.tiling.scheduleRetile(); self?.rebuildMenu() }
         }
+        // Switching desktops (or returning from Mission Control onto one)
+        // must rearrange nothing: adopt the newly visible windows as the
+        // baseline after the Space transition settles.
+        nc.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                self?.tiling.adoptCurrentSpaceAsBaseline(); self?.rebuildMenu()
+            }
+        }
     }
 
     private func showOnboarding() {

@@ -97,8 +97,44 @@ public enum AXWindowService {
         kAXSizeAttribute as String, kAXTitleAttribute as String,
     ]
 
-    public static func allWindows(excludedBundleIDs: Set<String>) -> [ManagedWindow] {
+    /// Window IDs actually visible on the current Space, frontmost first.
+    /// Only IDs/bounds/owner are read, so no Screen Recording permission
+    /// is needed. AX alone happily reports windows on other Spaces and
+    /// windows of hidden apps; intersecting with this list is what keeps
+    /// Mission Control trips and Space switches from looking like
+    /// "windows opened/closed" to the tiling planner.
+    public static func onScreenWindowIDsInZOrder() -> [CGWindowID] {
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return [] }
+        return list.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.uint32Value }
+    }
+
+    /// True while Mission Control / Exposé / Launchpad owns the screen.
+    /// Detector: the Dock (which hosts those UIs) shows an on-screen,
+    /// Dock-level window covering (nearly) a whole display. The normal
+    /// Dock bar is a thin edge strip and never matches. While this is
+    /// true, tiling and drag-docking suspend — real window frames are
+    /// meaningless on the Mission Control canvas.
+    public static func isSystemOverviewActive() -> Bool {
+        guard let dockPID = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == "com.apple.dock" })?.processIdentifier,
+              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return false }
+        let screens = NSScreen.screens.map(\.frame)
+        return list.contains { info in
+            guard (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == dockPID,
+                  let layer = (info[kCGWindowLayer as String] as? NSNumber)?.intValue, layer >= 20,
+                  let boundsDict = info[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: boundsDict) else { return false }
+            return isFullScreen(bounds: bounds, screens: screens)
+        }
+    }
+
+    /// Pure size test behind the overview detector (unit-tested).
+    static func isFullScreen(bounds: CGRect, screens: [CGRect]) -> Bool {
+        screens.contains { bounds.width >= $0.width * 0.9 && bounds.height >= $0.height * 0.9 }
+    }
+
+    public static func allWindows(excludedBundleIDs: Set<String>, onScreenOnly: Bool = true) -> [ManagedWindow] {
         guard isAccessibilityTrusted(prompt: false) else { return [] }
+        let onScreen: Set<CGWindowID>? = onScreenOnly ? Set(onScreenWindowIDsInZOrder()) : nil
         var out: [ManagedWindow] = []
         let ownPID = ProcessInfo.processInfo.processIdentifier
         let attrs = windowAttributes as CFArray
@@ -115,7 +151,8 @@ public enum AXWindowService {
                 guard AXUIElementCopyMultipleAttributeValues(el, attrs, AXCopyMultipleAttributeOptions(rawValue: 0), &values) == .success,
                       let vs = values as? [Any?], vs.count == windowAttributes.count else {
                     // Fall back to per-attribute reads for nonconformant apps.
-                    if let w = slowWindow(el, appEl: appEl, app: app, bundleID: bundleID) { out.append(w) }
+                    if let w = slowWindow(el, appEl: appEl, app: app, bundleID: bundleID),
+                       onScreen.map({ $0.contains(w.snapshot.windowID) }) ?? true { out.append(w) }
                     continue
                 }
                 let role = vs[0] as? String ?? ""
@@ -130,6 +167,7 @@ public enum AXWindowService {
                 guard size.width > 80, size.height > 80 else { continue }
                 let wid = windowID(of: el)
                 if wid == 0 { continue }
+                if let onScreen, !onScreen.contains(wid) { continue } // other Space / hidden app
                 out.append(ManagedWindow(
                     snapshot: WindowSnapshot(windowID: wid, pid: app.processIdentifier,
                         appName: app.localizedName ?? bundleID, bundleID: bundleID,

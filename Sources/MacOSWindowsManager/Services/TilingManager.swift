@@ -101,6 +101,9 @@ public final class TilingManager: ObservableObject {
     /// display) actually changed. Clicking between windows must never
     /// rearrange anything.
     public func tileAllIfWindowSetChanged() {
+        // Never plan against the Mission Control canvas: frames and
+        // on-screen membership there do not reflect the real Space.
+        guard !AXWindowService.isSystemOverviewActive() else { return }
         guard AXWindowService.isAccessibilityTrusted(prompt: false) else { return }
         let all = windows()
         let byScreen = groupByDisplay(all)
@@ -118,6 +121,10 @@ public final class TilingManager: ObservableObject {
     }
 
     private func tile(all: [ManagedWindow], byScreen: [String: (NSScreen, [ManagedWindow])], animated: Bool) {
+        if AXWindowService.isSystemOverviewActive() {
+            lastStatus = "Mission Control is showing — tiling paused until it closes"
+            return
+        }
         lastManaged = all
         lastWindowCount = all.count
         if lastLayoutMode != settings.layoutMode {
@@ -130,7 +137,7 @@ public final class TilingManager: ObservableObject {
         guard !all.isEmpty else { lastStatus = "No standard windows found"; return }
         for w in all where originalFrames[w.snapshot.windowID] == nil { originalFrames[w.snapshot.windowID] = w.snapshot.axFrame }
         if originalFrames.count > 64 { // prune frames of long-closed windows
-            let live = Set(AXWindowService.allWindows(excludedBundleIDs: []).map { $0.snapshot.windowID })
+            let live = Set(AXWindowService.allWindows(excludedBundleIDs: [], onScreenOnly: false).map { $0.snapshot.windowID })
             originalFrames = originalFrames.filter { live.contains($0.key) }
         }
         var targets: [CGWindowID: (ManagedWindow, CGRect)] = [:]
@@ -253,7 +260,8 @@ public final class TilingManager: ObservableObject {
 
     public func floatAll() {
         animationTask?.cancel()
-        for w in AXWindowService.allWindows(excludedBundleIDs: []) {
+        // Restore covers every Space, not just the visible one.
+        for w in AXWindowService.allWindows(excludedBundleIDs: [], onScreenOnly: false) {
             if let o = originalFrames[w.snapshot.windowID] { AXWindowService.setFrame(o, on: w.element) }
         }
         lastStatus = "Floated all windows (original positions restored)"
@@ -367,8 +375,14 @@ public final class TilingManager: ObservableObject {
         }
         return out
     }
+    /// Window frames in true front-to-back z-order (AX enumeration order
+    /// is arbitrary, so hit-testing must not rely on it).
     public func windowCocoaFrames() -> [(id: CGWindowID, rect: CGRect)] {
-        windows().map { w in (w.snapshot.windowID, CoordinateConverter.cocoaFrame(fromAX: w.snapshot.axFrame, primaryHeight: primaryHeight)) }
+        let z = AXWindowService.onScreenWindowIDsInZOrder()
+        let rank = Dictionary(uniqueKeysWithValues: z.enumerated().map { ($0.element, $0.offset) })
+        return windows()
+            .sorted { (rank[$0.snapshot.windowID] ?? Int.max) < (rank[$1.snapshot.windowID] ?? Int.max) }
+            .map { w in (w.snapshot.windowID, CoordinateConverter.cocoaFrame(fromAX: w.snapshot.axFrame, primaryHeight: primaryHeight)) }
     }
 
     // MARK: - Zoom / overview / history
@@ -444,9 +458,31 @@ public final class TilingManager: ObservableObject {
         debounceTask?.cancel()
         debounceTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 350_000_000)
-            if Task.isCancelled { return }
+            // A retile requested while Mission Control is up waits for it
+            // to close (bounded), instead of planning against thumbnails.
+            var waits = 0
+            while AXWindowService.isSystemOverviewActive(), waits < 20 {
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                waits += 1
+            }
+            if Task.isCancelled || AXWindowService.isSystemOverviewActive() { return }
             if force { self.tileAll() } else { self.tileAllIfWindowSetChanged() }
         }
+    }
+
+    /// Called when the active Space changes (including returning from
+    /// Mission Control to a different desktop). The newly visible window
+    /// set becomes the baseline as-is: arriving on a Space never counts
+    /// as "windows changed", so nothing rearranges just for looking.
+    /// Windows that open or close afterwards tile normally.
+    public func adoptCurrentSpaceAsBaseline() {
+        guard AXWindowService.isAccessibilityTrusted(prompt: false),
+              !AXWindowService.isSystemOverviewActive() else { return }
+        let all = windows()
+        lastManaged = all
+        lastWindowCount = all.count
+        lastFingerprint = fingerprint(of: groupByDisplay(all))
+        lastLayoutMode = settings.layoutMode
     }
 }
 

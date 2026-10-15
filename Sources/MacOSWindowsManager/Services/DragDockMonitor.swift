@@ -42,6 +42,10 @@ final class DragDockMonitor {
     /// every window via Accessibility on every mouse-drag event (dozens of
     /// IPC round-trips per second, mid-drag).
     private var cachedFrames: [(id: CGWindowID, rect: CGRect)] = []
+    /// True for a gesture that began while Mission Control owns the
+    /// screen: coordinates there point at thumbnails, not real windows,
+    /// so the whole gesture is ignored.
+    private var ignoringGesture = false
 
     init(tiling: TilingManager) { self.tiling = tiling }
 
@@ -63,6 +67,8 @@ final class DragDockMonitor {
         switch e.type {
         case .leftMouseDown:
             dragStart = p
+            ignoringGesture = AXWindowService.isSystemOverviewActive()
+            if ignoringGesture { return }
             cachedFrames = tiling.windowCocoaFrames()
             // Seam first: grabbing a divider resizes both neighbours.
             for (key, rect) in tiling.seamRectsCocoa() where rect.contains(p) {
@@ -70,15 +76,21 @@ final class DragDockMonitor {
                 seamWindowID = cachedFrames.min(by: { abs($0.rect.minX - rect.minX) < abs($1.rect.minX - rect.minX) })?.id
                 return
             }
-            dragWindowID = cachedFrames.last(where: { $0.rect.contains(p) })?.id
+            // Only the FRONTMOST window under the cursor (cachedFrames is
+            // z-ordered), grabbed by its title-bar band, starts a drag.
+            if let front = cachedFrames.first(where: { $0.rect.contains(p) }),
+               DockGeometry.isTitleBarDrag(point: p, in: front.rect) {
+                dragWindowID = front.id
+            }
         case .leftMouseDragged:
+            if ignoringGesture { return }
             if seamKey != nil, let wid = seamWindowID {
                 let delta = Double((p.x - seamStartX) / 600.0)
                 if abs(p.x - seamStartX) > 4 { tiling.resizeSeam(containing: wid, delta: delta > 0 ? 0.02 : -0.02); seamStartX = p.x }
                 return
             }
             guard let dragged = dragWindowID, hypot(p.x - dragStart.x, p.y - dragStart.y) > 10 else { return }
-            if let target = cachedFrames.last(where: { $0.id != dragged && $0.rect.contains(p) }) {
+            if let target = cachedFrames.first(where: { $0.id != dragged && $0.rect.contains(p) }) {
                 let zone = DockGeometry.zone(at: p, in: target.rect)
                 overlay.show(rect: previewRect(zone: zone, in: target.rect), tab: zone == .center)
             } else if let scr = NSScreen.screens.first(where: { $0.visibleFrame.contains(p) }) {
@@ -86,12 +98,15 @@ final class DragDockMonitor {
                 overlay.show(rect: previewRect(zone: zone, in: scr.visibleFrame), tab: false)
             }
         case .leftMouseUp:
-            defer { overlay.hide(); dragWindowID = nil; seamKey = nil; seamWindowID = nil; cachedFrames = [] }
+            defer { overlay.hide(); dragWindowID = nil; seamKey = nil; seamWindowID = nil; cachedFrames = []; ignoringGesture = false }
+            // Gesture began in (or ended in — e.g. hot-corner) Mission
+            // Control: never dock based on thumbnail coordinates.
+            if ignoringGesture || AXWindowService.isSystemOverviewActive() { return }
             if seamKey != nil { return } // live resize already applied
             guard let dragged = dragWindowID, hypot(p.x - dragStart.x, p.y - dragStart.y) > 10 else { return }
             // A window the user just dragged by hand must not be re-docked onto itself.
             // Drop targets didn't move during the drag, so the cached frames are still right.
-            let target = cachedFrames.last(where: { $0.id != dragged && $0.rect.contains(p) })
+            let target = cachedFrames.first(where: { $0.id != dragged && $0.rect.contains(p) })
             let zone: DockZone
             if let t = target { zone = DockGeometry.zone(at: p, in: t.rect) }
             else if let scr = NSScreen.screens.first(where: { $0.visibleFrame.contains(p) }) { zone = DockGeometry.zone(at: p, in: scr.visibleFrame) }

@@ -325,6 +325,14 @@ public enum DockZone: String, Equatable { case left, right, top, bottom, center 
 
 /// Pure dock hit-testing shared by drag-to-dock and tests.
 public enum DockGeometry {
+    /// A real macOS window drag starts from the title bar / toolbar band.
+    /// Requiring the grab to start there means text selections, content
+    /// drags, and Mission Control thumbnail drags are never mistaken for
+    /// "drag this window somewhere to dock it". Cocoa coords: top = maxY.
+    public static func isTitleBarDrag(point: CGPoint, in rect: CGRect, bandHeight: CGFloat = 48) -> Bool {
+        rect.contains(point) && point.y >= rect.maxY - bandHeight
+    }
+
     /// Zone inside a window/screen rect: center 50% tabs, edges dock.
     public static func zone(at point: CGPoint, in rect: CGRect, centerFraction: CGFloat = 0.5) -> DockZone {
         guard rect.width > 0, rect.height > 0 else { return .center }

@@ -82,6 +82,27 @@ final class TrellisMovesTests: XCTestCase {
         XCTAssertLessThan(mid.width, 750) // eased: closer to target than linear 900
     }
 
+    func testOnlyTitleBarGrabsStartAWindowDrag() {
+        // Top band (Cocoa: maxY is top) counts; content area must not,
+        // or text selections and Mission Control thumbnail drags would
+        // be mistaken for drag-to-dock gestures.
+        XCTAssertTrue(DockGeometry.isTitleBarDrag(point: CGPoint(x: 600, y: 790), in: rect))
+        XCTAssertTrue(DockGeometry.isTitleBarDrag(point: CGPoint(x: 10, y: 755), in: rect))
+        XCTAssertFalse(DockGeometry.isTitleBarDrag(point: CGPoint(x: 600, y: 400), in: rect))
+        XCTAssertFalse(DockGeometry.isTitleBarDrag(point: CGPoint(x: 600, y: 10), in: rect))
+        XCTAssertFalse(DockGeometry.isTitleBarDrag(point: CGPoint(x: 1300, y: 790), in: rect)) // outside
+    }
+
+    func testMissionControlDetectorNeedsFullScreenDockWindow() {
+        let screens = [CGRect(x: 0, y: 0, width: 1920, height: 1080)]
+        // Mission Control canvas covers the display.
+        XCTAssertTrue(AXWindowService.isFullScreen(bounds: CGRect(x: 0, y: 0, width: 1920, height: 1080), screens: screens))
+        // The ordinary Dock bar is a thin strip — must never suspend tiling.
+        XCTAssertFalse(AXWindowService.isFullScreen(bounds: CGRect(x: 600, y: 1010, width: 720, height: 70), screens: screens))
+        XCTAssertFalse(AXWindowService.isFullScreen(bounds: CGRect(x: 0, y: 0, width: 1920, height: 90), screens: screens)) // desktops strip alone
+        XCTAssertFalse(AXWindowService.isFullScreen(bounds: CGRect(x: 0, y: 0, width: 800, height: 600), screens: screens))
+    }
+
     func testSavedViewsArePerDisplay() {
         var store = SavedViewStore()
         store.save(display: "display-1", slot: 1, frames: [1: CGRect(x: 0, y: 0, width: 100, height: 100)])

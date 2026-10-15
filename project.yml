@@ -23,7 +23,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.houman.MacOSWindowsManager
         PRODUCT_NAME: MacOSWindowsManager
         MARKETING_VERSION: "1.1"
-        CURRENT_PROJECT_VERSION: "3"
+        CURRENT_PROJECT_VERSION: "4"
         INFOPLIST_KEY_LSUIElement: YES
         INFOPLIST_KEY_NSPrincipalClass: NSApplication
         GENERATE_INFOPLIST_FILE: YES
