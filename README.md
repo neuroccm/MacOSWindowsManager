@@ -2,6 +2,10 @@
 
 **Version 1.1 (build 4)** · macOS 14+ · Native Swift · No account, no pay tier, no network
 
+> **Archived / read-only.** This is a personal project published for
+> reference. It is not accepting issues or pull requests, and no support
+> is offered — please feel free to read the code and build it yourself.
+
 ![MacOSWindowsManager app icon](icon-1024.png)
 
 Your own native Swift window manager for macOS — inspired by TrellisWM's
