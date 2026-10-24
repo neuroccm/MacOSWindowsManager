@@ -12,8 +12,7 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-    # Review PRs to any base (including the empty review base used for the
-    # one-off whole-codebase review), not only PRs targeting main.
+    # Review PRs to any base branch, not only PRs targeting main.
     base_branches:
       - ".*"
   path_instructions:

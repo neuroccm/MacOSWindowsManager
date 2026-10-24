@@ -1,14 +1,13 @@
 # CodeRabbit full-codebase review brief
 
-Hello @coderabbitai — this PR exists **only to get the whole codebase
-reviewed**. Its diff intentionally contains every file in the repo
-(tree identical to `main` @ `e831bb5`, v1.2 build 6, plus
-`.coderabbit.yaml` and this brief). Please review **all** Swift sources
-and tests, not just the newly added config/brief.
+Hello @coderabbitai — this PR targets `main` and is intended to merge.
+It adds `.coderabbit.yaml` and this brief (no Swift changes), so the
+config governs every future PR. Please review the config/brief here
+and assess the four questions below against **all** Swift sources and
+tests currently on `main` @ `e831bb5` (v1.2 build 6).
 
-> **Do not merge this PR.** It targets an empty review-only base branch
-> (`coderabbit/empty-review-base`) purely so the full codebase appears
-> in one diff. Agreed fixes will land on `main` in small follow-up PRs.
+> Swift fixes arising from this review will land on `main` in small
+> follow-up PRs, each with its own inline CodeRabbit review.
 
 App in one line: a native Swift/AppKit menu-bar window manager for
 macOS 14+ using the Accessibility (AX) API — no network, no account,
