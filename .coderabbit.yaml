@@ -1,0 +1,115 @@
+# CodeRabbit configuration for MacOSWindowsManager.
+# Full context: docs/CODERABBIT_REVIEW_BRIEF.md — please read it first.
+language: "en-US"
+tone_instructions: >-
+  Be direct and specific. Prioritise correctness, stability, and resource
+  efficiency over style. For every finding, name the file/symbol, explain
+  the concrete failure or cost, and suggest the smallest safe fix.
+reviews:
+  profile: "assertive"
+  high_level_summary: true
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+    # Review PRs to any base branch, not only PRs targeting main.
+    base_branches:
+      - ".*"
+  path_instructions:
+    - path: "Sources/MacOSWindowsManager/Models/StableLayout.swift"
+      instructions: |
+        This is the rational-layout core. Review hard:
+        - Is capping a display at maxVisible 4/2/1 (minQuarter 440x300)
+          the right "at most 4-5 readable apps per monitor" rule? Should
+          5 ever be visible (e.g. ultrawide / 5K / portrait stack), or
+          must a 5th window always tab behind an existing tile?
+        - AppClassifier categories exist but slot shapes ignore app type.
+          Flag where portrait-preferring apps (messaging, documents,
+          terminals, mail) should receive tall/narrow slots and
+          landscape-preferring apps (browser, code, media, meetings)
+          wide slots — on both landscape and portrait displays. Propose
+          a concrete, stability-preserving extension (do not propose
+          focus-driven reshuffling; the no-churn contract must hold).
+        - Check plan()/applyPairingSwap() for correctness, O(n^2) growth,
+          force unwraps, and stability-contract violations (primary
+          never moves, at most one swap, focus alone never re-plans).
+    - path: "Sources/MacOSWindowsManager/Models/LayoutTree.swift"
+      instructions: |
+        Review the BSP tree + Master/Columns/Grid solvers for the same
+        rationality rules: no sliver tiles below a readable minimum on
+        any display size/orientation, seam clamps, balanced() recursion
+        depth / stack safety with many windows, and Cocoa<->AX
+        coordinate conversion correctness across 1, 2, 3+ mixed-size
+        and portrait displays (including negative origins / dead zones).
+    - path: "Sources/MacOSWindowsManager/Services/AXWindowService.swift"
+      instructions: |
+        Highest-risk file for stability and system load. Review hard:
+        - Every AXUIElement call: error handling, CF type checks, the
+          private _AXUIElementGetWindow (@_silgen_name) fallback safety,
+          and any force cast/unwrapping that can crash the app.
+        - Cost: enumeration frequency, per-window attribute fetches,
+          isSystemOverviewActive() cost and reliability. Flag any path
+          that can hammer WindowServer or spin (tight retries, repeated
+          full enumerations, unthrottled setFrame sequences).
+        - Be precise about kernel panics: this is a user-space
+          Accessibility app with no kernel extension. Only claim a
+          panic risk if you can name the exact pathological call pattern
+          that could destabilise WindowServer/drivers; otherwise report
+          app-crash / WindowServer-load risks accurately as such.
+    - path: "Sources/MacOSWindowsManager/Services/TilingManager.swift"
+      instructions: |
+        Review for efficiency, cleanliness, and macOS Spaces support:
+        - Efficiency: fingerprint no-op path, debounce/animation pacing
+          (deadline-paced Task.sleep loops), syncTree() complexity,
+          dictionary growth/pruning (originalFrames, trees, cameras,
+          stableOrder), and any redundant AX enumeration per retile.
+        - Spaces/virtual desktops: state is keyed by display only.
+          Assess what breaks or leaks across Spaces today and propose
+          the smallest public-API-only design for independent, stable
+          layouts per (display x Space) that still never rearranges
+          windows merely because the user looked at another Space or
+          Mission Control. Call out any private-API (CGS/SkyLight)
+          temptation explicitly and prefer a safe degradation.
+        - @MainActor correctness: blocking work, task cancellation,
+          retain cycles, and state races between debounce/animation.
+    - path: "Sources/MacOSWindowsManager/Services/**"
+      instructions: |
+        Review DragDockMonitor (global NSEvent monitor frequency and
+        per-event work), HotkeyManager (Carbon registration cleanup),
+        and SettingsStore (persistence cost/correctness) for idle CPU,
+        wakeups, leaked monitors/handlers, and missing teardown. The
+        app must use ~zero resources when idle: flag every timer, poll,
+        observer, or monitor that fires when nothing changed.
+    - path: "Sources/MacOSWindowsManager/AppDelegate.swift"
+      instructions: |
+        Review the 2-second Accessibility trust Timer (must stop once
+        trusted and never poll forever), NSWorkspace observers
+        (activeSpaceDidChange, display reconfiguration), menu rebuild
+        cost, and launch/quit restore behaviour. Flag observer leaks,
+        duplicate registrations, and any work done on every workspace
+        notification that should be debounced or fingerprinted away.
+    - path: "Tests/**"
+      instructions: |
+        Assess coverage of the contracts above: max-4/5 rationality and
+        overflow promotion, portrait vs landscape slots, 3+ display
+        assignment, no-churn stability, and per-Space behaviour. Name
+        the highest-value missing tests (with concrete inputs/asserts),
+        especially boundary display sizes just above/below the
+        440x300 quarter threshold and 5+ window overflow ordering.
+    - path: "**/*.swift"
+      instructions: |
+        General Swift review: force unwraps/casts, integer/geometry
+        overflow, retain cycles ([weak self] discipline), concurrency
+        (MainActor / Sendable / Task lifetime), dead code, and clean
+        separation between pure Models (no AppKit/AX dependency) and
+        Services. Prefer small, safe, incremental fixes over rewrites.
+chat:
+  auto_reply: true
+knowledge_base:
+  learnings:
+    scope: auto
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "docs/CODERABBIT_REVIEW_BRIEF.md"
+      - "README.md"
