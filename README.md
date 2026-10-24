@@ -2,9 +2,9 @@
 
 **Version 1.2 (build 6)** · macOS 14+ · Native Swift · No account, no pay tier, no network
 
-> **Archived / read-only.** This is a personal project published for
-> reference. It is not accepting issues or pull requests, and no support
-> is offered — please feel free to read the code and build it yourself.
+> **Active personal project.** Issues and pull requests are welcome.
+> It is maintained on a best-effort basis with no support guarantee —
+> please feel free to read the code and build it yourself.
 
 ![MacOSWindowsManager app icon](icon-1024.png)
 
