@@ -2,9 +2,9 @@
 
 Hello @coderabbitai — this PR targets `main` and is intended to merge.
 It adds `.coderabbit.yaml` and this brief (no Swift changes), so the
-config governs every future PR. Please review the config/brief here
-and assess the four questions below against **all** Swift sources and
-tests currently on `main` @ `e831bb5` (v1.2 build 6).
+config governs every future PR. Please review the config/brief here.
+Assess all Swift sources and tests at the current PR head, using its
+merge base with the base branch to identify changes.
 
 > Swift fixes arising from this review will land on `main` in small
 > follow-up PRs, each with its own inline CodeRabbit review.
